@@ -1,0 +1,1 @@
+a sortable tab solution for angular js, only used for ng-repeat directive
