@@ -182,6 +182,8 @@ angular.module('bigcheap.sortabletabs', [])
     </tabset>
   </file>
 </example>
+
+@see http://stackoverflow.com/questions/22850782/angular-tabs-sortable-moveable
  */
 .directive('sortableTab', ['$parse', '$window', function($parse, $window) {
   return {
@@ -243,7 +245,10 @@ angular.module('bigcheap.sortabletabs', [])
         var dragTag = Math.random().toString();
 
         attrs.$set('draggable', true);
-        var tabCategory = attrs.sortableTabCategory ? attrs.sortableTabCategory.toString() : Math.random().toString();
+        if (!attrs.sortableTabCategory) {
+          throw 'sortable-tab should have a UNIQUE sortable-tab-category value to distinguish it from the others'
+        }
+        var tabCategory = attrs.sortableTabCategory.toString()
 
         var internalMethods = {
           getDropAreaFound: function (tag) {
