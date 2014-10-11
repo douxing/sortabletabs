@@ -8,6 +8,9 @@
  * @see https://github.com/angular-ui/bootstrap
  */
 
+angular.module('bigcheap', ['bigcheap.tpls', 'bigcheap.sortabletabs']);
+angular.module("bigcheap.tpls", ['bigcheap/tabs/tab.html', 'bigcheap/tabs/tabset-titles.html', 'bigcheap/tabs/tabset.html']);
+
 angular.module('bigcheap.sortabletabs', [])
 
 .controller('SortableTabsetController', ['$scope', function TabsetCtrl($scope) {
@@ -192,7 +195,8 @@ angular.module('bigcheap.sortabletabs', [])
       heading: '@',
       onSelect: '&select', //This callback is called in contentHeadingTransclude
                           //once it inserts the tab's content into the dom
-      onDeselect: '&deselect'
+      onDeselect: '&deselect',
+      onDragend: '&dragend'
     },
     controller: function() {
       //Empty controller so other directives can require being 'under' a tab
@@ -234,56 +238,93 @@ angular.module('bigcheap.sortabletabs', [])
         // add draggable functionality to the ng-repeat
         //
         var match = attrs.ngRepeat.match(/^\s*([\s\S]+?)\s+in\s+([\s\S]+?)(?:\s+track\s+by\s+([\s\S]+?))?\s*$/);
-        var tabs = null
-        scope.$watch(match[2], function (newTabs) {
-          tabs = newTabs;
-        });
-        var index = scope.$index;
-        scope.$watch('$index', function (newIndex) {
-          index = newIndex;
-        });
+        var tabsGetter = $parse('$parent.'+match[2]);
+        console.log('new random number generated.');
+        var dragTag = Math.random().toString();
+
         attrs.$set('draggable', true);
-        var tabCtgy = attrs.sortableTabCategory ? attrs.sortableTabCategory.toString() : Math.random().toString();
+        var tabCategory = attrs.sortableTabCategory ? attrs.sortableTabCategory.toString() : Math.random().toString();
+
+        var internalMethods = {
+          getDropAreaFound: function (tag) {
+            if (tag) {
+              var item = angular.fromJson($window.sessionStorage.getItem(tag));
+              if (item && item.dropareafound) {
+                return !!item.dropareafound;
+              }
+            }
+            return false;
+          },
+          toggleDropAreaFound: function (tag) {
+            if (tag) {
+              var item = angular.fromJson($window.sessionStorage.getItem(tag));
+              if (item) {
+                item.dropareafound = ! item.dropareafound;
+                $window.sessionStorage.setItem(tag, angular.toJson(item));
+              }
+            }
+          }
+        };
 
         var listeners = {
           dragstart: function (event) {
             elm.addClass('dragging');
-
+            event = event.originalEvent ? event.originalEvent : event;
             var dt = event.dataTransfer;
             dt.effectAllowed = 'move';
             dt.dropEffect = 'move';
-            dt.setData('bigcheap/tab-index', index);
+            dt.setData('bigcheap/tab-index', scope.$parent.$index);
             dt.setData('bigcheap/tab-category', tabCategory);
-            dt.setData('bigcheap/tab-json', angular.toJson(scope[match[1]]));
-
+            dt.setData('bigcheap/tab-json', angular.toJson(scope.$parent[match[1]]));
+            dt.setData('bigcheap/tab-drag-tag', dragTag);
+            $window.sessionStorage.setItem(dragTag
+              , angular.toJson({dropareafound: false}));
           },
           drag: function (event) {
           },
           dragend: function (event) {
             elm.removeClass('dragging');
 
-            scope.$apply(function () {
-              tabs.splice(index, 1);
-            });
+            var found = internalMethods.getDropAreaFound(dragTag);
+            console.log('dragend dragTag: ', dragTag, ' found: ', found);
+
+            if (found) {
+              scope.$apply(function () {
+                tabsGetter(scope).splice(scope.$parent.$index, 1);
+              });
+            };
+
+            scope.onDragend({dropAreaFound: found});
           },
           dragenter: function (event) {
+            console.log('dragenter ...');
             elm.addClass('dragover');
+
+            event = event.originalEvent ? event.originalEvent : event;
+            var dt = event.dataTransfer;
+            internalMethods.toggleDropAreaFound(dt.getData('bigcheap/tab-drag-tag'), true);
           },
           dragleave: function (event) {
+            console.log('dragleave ...');
             elm.removeClass('dragover');
             elm.removeClass('tab-insert-left');
             elm.removeClass('tab-insert-right');
+
+            event = event.originalEvent ? event.originalEvent : event;
+            var dt = event.dataTransfer;
+            internalMethods.toggleDropAreaFound(dt.getData('bigcheap/tab-drag-tag'), false);
           },
           dragover: function (event) {
             event.preventDefault();
+            event = event.originalEvent ? event.originalEvent : event;
 
             var midLine = elm.offset().left + elm.width() / 2;
             if(event.x < midLine) {
-              elm.addClass 'tab-insert-left';
-              elm.removeClass 'tab-insert-right';
+              elm.addClass('tab-insert-left');
+              elm.removeClass('tab-insert-right');
             } else {
-              elm.addClass 'tab-insert-right';
-              elm.removeClass 'tab-insert-left';
+              elm.addClass('tab-insert-right');
+              elm.removeClass('tab-insert-left');
             }
           },
           drop: function (event) {
@@ -291,14 +332,17 @@ angular.module('bigcheap.sortabletabs', [])
             elm.removeClass('tab-insert-left');
             elm.removeClass('tab-insert-right');
 
+            event = event.originalEvent ? event.originalEvent : event;
             var dt = event.dataTransfer;
             var sourceIndex = dt.getData('bigcheap/tab-index');
             var midLine = elm.offset().left + elm.width() / 2;
-            var insertIndex = event.x < midLine ? index : index + 1;
+            var insertIndex = event.x < midLine ? scope.$parent.$index : scope.$parent.$index + 1;
 
-            if (tabCtgy === dt.getData('bigcheap/tab-category')) {
+            if (tabCategory === dt.getData('bigcheap/tab-category')) {
               scope.$apply(function () {
-                tabs.splice(insertIndex, 0, angular.fromJson(dt.getData('bigcheap/tab-json')));
+                console.log('before splice drop insertIndex:', insertIndex);
+                tabsGetter(scope).splice(insertIndex, 0, angular.fromJson(dt.getData('bigcheap/tab-json')));
+                console.log('after splice drop insertIndex:', insertIndex);
               });
             }
           },
@@ -311,7 +355,7 @@ angular.module('bigcheap.sortabletabs', [])
         };
 
         angular.forEach(listeners, function (listener, event) {
-          elm.addEventListener(event, listener);
+          elm.on(event, listener);
         });
 
       };
@@ -366,7 +410,7 @@ angular.module('bigcheap.sortabletabs', [])
 });
 
 angular.module("bigcheap/tabs/tab.html", []).run(["$templateCache", function($templateCache) {
-  $templateCache.put("template/tabs/tab.html",
+  $templateCache.put("bigcheap/tabs/tab.html",
     "<li ng-class=\"{active: active, disabled: disabled}\">\n" +
     "  <a ng-click=\"select()\" sortable-tab-heading-transclude>{{heading}}</a>\n" +
     "</li>\n" +
@@ -374,14 +418,14 @@ angular.module("bigcheap/tabs/tab.html", []).run(["$templateCache", function($te
 }]);
 
 angular.module("bigcheap/tabs/tabset-titles.html", []).run(["$templateCache", function($templateCache) {
-  $templateCache.put("template/tabs/tabset-titles.html",
+  $templateCache.put("bigcheap/tabs/tabset-titles.html",
     "<ul class=\"nav {{type && 'nav-' + type}}\" ng-class=\"{'nav-stacked': vertical}\">\n" +
     "</ul>\n" +
     "");
 }]);
 
 angular.module("bigcheap/tabs/tabset.html", []).run(["$templateCache", function($templateCache) {
-  $templateCache.put("template/tabs/tabset.html",
+  $templateCache.put("bigcheap/tabs/tabset.html",
     "\n" +
     "<div>\n" +
     "  <ul class=\"nav nav-{{type || 'tabs'}}\" ng-class=\"{'nav-stacked': vertical, 'nav-justified': justified}\" ng-transclude></ul>\n" +
