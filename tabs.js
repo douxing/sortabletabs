@@ -299,7 +299,9 @@ angular.module('bigcheap.sortabletabs', [])
               });
             };
 
-            scope.onDragend({dropAreaFound: found});
+            scope.onDragend({
+              $dropAreaFound: found
+            });
           },
           dragenter: function (event) {
             console.log('dragenter ...');
