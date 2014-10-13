@@ -195,10 +195,12 @@ angular.module('bigcheap.sortabletabs', [])
     scope: {
       active: '=?',
       heading: '@',
+      tabDragdata: '=?',
       onSelect: '&select', //This callback is called in contentHeadingTransclude
                           //once it inserts the tab's content into the dom
       onDeselect: '&deselect',
-      onDragend: '&dragend'
+      onDrop: '&tabDrop',
+      onDragend: '&tabDragend'
     },
     controller: function() {
       //Empty controller so other directives can require being 'under' a tab
@@ -280,10 +282,9 @@ angular.module('bigcheap.sortabletabs', [])
             dt.dropEffect = 'move';
             dt.setData('bigcheap/tab-index', scope.$parent.$index);
             dt.setData('bigcheap/tab-category', tabCategory);
-            dt.setData('bigcheap/tab-json', angular.toJson(scope.$parent[match[1]]));
+            dt.setData('bigcheap/tab-jsondata', angular.toJson(scope.tabDragdata));
             dt.setData('bigcheap/tab-drag-tag', dragTag);
-            $window.sessionStorage.setItem(dragTag
-              , angular.toJson({dropareafound: false}));
+            $window.sessionStorage.setItem(dragTag, angular.toJson({dropareafound: false}));
           },
           drag: function (event) {
           },
@@ -348,7 +349,7 @@ angular.module('bigcheap.sortabletabs', [])
             if (tabCategory === dt.getData('bigcheap/tab-category')) {
               scope.$apply(function () {
                 console.log('before splice drop insertIndex:', insertIndex);
-                tabsGetter(scope).splice(insertIndex, 0, angular.fromJson(dt.getData('bigcheap/tab-json')));
+                tabsGetter(scope).splice(insertIndex, 0, angular.fromJson(dt.getData('bigcheap/tab-jsondata')));
                 console.log('after splice drop insertIndex:', insertIndex);
               });
             }
