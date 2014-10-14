@@ -282,7 +282,8 @@ angular.module('bigcheap.sortabletabs', [])
             dt.dropEffect = 'move';
             dt.setData('bigcheap/tab-index', scope.$parent.$index);
             dt.setData('bigcheap/tab-category', tabCategory);
-            dt.setData('bigcheap/tab-jsondata', angular.toJson(scope.tabDragdata));
+            dt.setData('bigcheap/tab-scope', angular.toJson(scope.$parent[match[1]]));
+            dt.setData('bigcheap/tab-json', angular.toJson(scope.tabDragdata));
             dt.setData('bigcheap/tab-drag-tag', dragTag);
             $window.sessionStorage.setItem(dragTag, angular.toJson({dropareafound: false}));
           },
@@ -348,9 +349,14 @@ angular.module('bigcheap.sortabletabs', [])
 
             if (tabCategory === dt.getData('bigcheap/tab-category')) {
               scope.$apply(function () {
-                console.log('before splice drop insertIndex:', insertIndex);
-                tabsGetter(scope).splice(insertIndex, 0, angular.fromJson(dt.getData('bigcheap/tab-jsondata')));
-                console.log('after splice drop insertIndex:', insertIndex);
+                tabsGetter(scope).splice(insertIndex, 0, angular.fromJson(dt.getData('bigcheap/tab-scope')));
+              });
+              var jsondata = undefined;
+              try {
+                jsondata = angular.fromJson(dt.getData('bigcheap/tab-json'));
+              } catch (e) {};
+              scope.onDrop({
+                $dropData: jsondata
               });
             }
           },
