@@ -196,6 +196,7 @@ angular.module('bigcheap.sortabletabs', [])
       active: '=?',
       heading: '@',
       tabDragdata: '=?',
+      tabDragdelete: '@',
       onSelect: '&select', //This callback is called in contentHeadingTransclude
                           //once it inserts the tab's content into the dom
       onDeselect: '&deselect',
@@ -243,8 +244,11 @@ angular.module('bigcheap.sortabletabs', [])
         //
         var match = attrs.ngRepeat.match(/^\s*([\s\S]+?)\s+in\s+([\s\S]+?)(?:\s+track\s+by\s+([\s\S]+?))?\s*$/);
         var tabsGetter = $parse('$parent.'+match[2]);
-        console.log('new random number generated.');
         var dragTag = Math.random().toString();
+        var dragDelete = 'preserve';
+        if (scope.tabDragdelete && scope.tabDragdelete === 'always') {
+          dragDelete = 'always';
+        }
 
         attrs.$set('draggable', true);
         if (!attrs.sortableTabCategory) {
@@ -255,7 +259,7 @@ angular.module('bigcheap.sortabletabs', [])
         var internalMethods = {
           getDropAreaFound: function (tag) {
             if (tag) {
-              var item = angular.fromJson($window.sessionStorage.getItem(tag));
+              var item = angular.fromJson($window.localStorage.getItem(tag));
               if (item && item.dropareafound) {
                 return !!item.dropareafound;
               }
@@ -264,11 +268,16 @@ angular.module('bigcheap.sortabletabs', [])
           },
           toggleDropAreaFound: function (tag) {
             if (tag) {
-              var item = angular.fromJson($window.sessionStorage.getItem(tag));
+              var item = angular.fromJson($window.localStorage.getItem(tag));
               if (item) {
                 item.dropareafound = ! item.dropareafound;
-                $window.sessionStorage.setItem(tag, angular.toJson(item));
+                $window.localStorage.setItem(tag, angular.toJson(item));
               }
+            }
+          },
+          deleteDropAreaTag: function (tag) {
+            if (tag) {
+              $window.localStorage.removeItem(tag);
             }
           }
         };
@@ -285,7 +294,7 @@ angular.module('bigcheap.sortabletabs', [])
             dt.setData('bigcheap/tab-scope', angular.toJson(scope.$parent[match[1]]));
             dt.setData('bigcheap/tab-json', angular.toJson(scope.tabDragdata));
             dt.setData('bigcheap/tab-drag-tag', dragTag);
-            $window.sessionStorage.setItem(dragTag, angular.toJson({dropareafound: false}));
+            $window.localStorage.setItem(dragTag, angular.toJson({dropareafound: false}));
           },
           drag: function (event) {
           },
@@ -293,35 +302,33 @@ angular.module('bigcheap.sortabletabs', [])
             elm.removeClass('dragging');
 
             var found = internalMethods.getDropAreaFound(dragTag);
-            console.log('dragend dragTag: ', dragTag, ' found: ', found);
-
-            if (found) {
+            if (found || dragDelete === 'always') {
               scope.$apply(function () {
                 tabsGetter(scope).splice(scope.$parent.$index, 1);
               });
-            };
+            }
 
             scope.onDragend({
               $dropAreaFound: found
             });
+
+            internalMethods.deleteDropAreaTag(dragTag);
           },
           dragenter: function (event) {
-            console.log('dragenter ...');
             elm.addClass('dragover');
 
             event = event.originalEvent ? event.originalEvent : event;
             var dt = event.dataTransfer;
-            internalMethods.toggleDropAreaFound(dt.getData('bigcheap/tab-drag-tag'), true);
+            internalMethods.toggleDropAreaFound(dt.getData('bigcheap/tab-drag-tag'));
           },
           dragleave: function (event) {
-            console.log('dragleave ...');
             elm.removeClass('dragover');
             elm.removeClass('tab-insert-left');
             elm.removeClass('tab-insert-right');
 
             event = event.originalEvent ? event.originalEvent : event;
             var dt = event.dataTransfer;
-            internalMethods.toggleDropAreaFound(dt.getData('bigcheap/tab-drag-tag'), false);
+            internalMethods.toggleDropAreaFound(dt.getData('bigcheap/tab-drag-tag'));
           },
           dragover: function (event) {
             event.preventDefault();
