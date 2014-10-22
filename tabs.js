@@ -243,8 +243,12 @@ angular.module('bigcheap.sortabletabs', [])
         // add draggable functionality to the ng-repeat
         //
         var match = attrs.ngRepeat.match(/^\s*([\s\S]+?)\s+in\s+([\s\S]+?)(?:\s+track\s+by\s+([\s\S]+?))?\s*$/);
+        var tabGetter = $parse('$parent.'+match[1]);
         var tabsGetter = $parse('$parent.'+match[2]);
-        var dragTag = Math.random().toString();
+        var postfix = Math.random().toString();
+        var tabIdTag = 'bigcheap/tabId' + postfix;
+        var tabId = tabGetter(scope).id ? tabGetter(scope).id.toString() : '';
+        var dropAreaFoundTag = 'bigcheap/dropAreaFound' + postfix;
         var dragDelete = 'preserve';
         if (scope.tabDragdelete && scope.tabDragdelete === 'always') {
           dragDelete = 'always';
@@ -289,30 +293,37 @@ angular.module('bigcheap.sortabletabs', [])
             var dt = event.dataTransfer;
             dt.effectAllowed = 'move';
             dt.dropEffect = 'move';
+            dt.setData('bigcheap/tab-id', tabId);
+            dt.setData('bigcheap/tab-id-tag', tabIdTag);
             dt.setData('bigcheap/tab-index', scope.$parent.$index);
             dt.setData('bigcheap/tab-category', tabCategory);
             dt.setData('bigcheap/tab-scope', angular.toJson(scope.$parent[match[1]]));
             dt.setData('bigcheap/tab-json', angular.toJson(scope.tabDragdata));
-            dt.setData('bigcheap/tab-drag-tag', dragTag);
-            $window.localStorage.setItem(dragTag, angular.toJson({dropareafound: false}));
+            dt.setData('bigcheap/tab-drag-tag', dropAreaFoundTag);
+            $window.localStorage.setItem(dropAreaFoundTag, angular.toJson({dropareafound: false}));
           },
           drag: function (event) {
           },
           dragend: function (event) {
             elm.removeClass('dragging');
 
-            var found = internalMethods.getDropAreaFound(dragTag);
-            if (found || dragDelete === 'always') {
-              scope.$apply(function () {
-                tabsGetter(scope).splice(scope.$parent.$index, 1);
+            var found = internalMethods.getDropAreaFound(dropAreaFoundTag);
+            var dropTabId = $window.localStorage.getItem(tabIdTag);
+            if (!dropTabId || !tabId || dropTabId !== tabId) {
+              console.log('dragend .............................');
+              if (found || dragDelete === 'always') {
+                scope.$apply(function () {
+                  tabsGetter(scope).splice(scope.$parent.$index, 1);
+                });
+              }
+
+              scope.onDragend({
+                $dropAreaFound: found
               });
             }
 
-            scope.onDragend({
-              $dropAreaFound: found
-            });
-
-            internalMethods.deleteDropAreaTag(dragTag);
+            internalMethods.deleteDropAreaTag(dropAreaFoundTag);
+            $window.localStorage.removeItem(tabIdTag);
           },
           dragenter: function (event) {
             elm.addClass('dragover');
@@ -333,6 +344,7 @@ angular.module('bigcheap.sortabletabs', [])
           dragover: function (event) {
             event.preventDefault();
             event = event.originalEvent ? event.originalEvent : event;
+            var dt = event.dataTransfer;
 
             var midLine = elm.offset().left + elm.width() / 2;
             if(event.x < midLine) {
@@ -342,6 +354,9 @@ angular.module('bigcheap.sortabletabs', [])
               elm.addClass('tab-insert-right');
               elm.removeClass('tab-insert-left');
             }
+
+            var sourceTabIdTag = dt.getData('bigcheap/tab-id-tag');
+            $window.localStorage.setItem(sourceTabIdTag, tabId);
           },
           drop: function (event) {
             elm.removeClass('dragover');
@@ -350,11 +365,14 @@ angular.module('bigcheap.sortabletabs', [])
 
             event = event.originalEvent ? event.originalEvent : event;
             var dt = event.dataTransfer;
+            var sourceTabId = dt.getData('bigcheap/tab-id');
             var sourceIndex = dt.getData('bigcheap/tab-index');
             var midLine = elm.offset().left + elm.width() / 2;
             var insertIndex = event.x < midLine ? scope.$parent.$index : scope.$parent.$index + 1;
 
-            if (tabCategory === dt.getData('bigcheap/tab-category')) {
+            if (sourceTabId && tabId && sourceTabId === tabId) {
+              return; // Drop on self, nothing to be done.
+            } else if (tabCategory === dt.getData('bigcheap/tab-category')) {
               scope.$apply(function () {
                 tabsGetter(scope).splice(insertIndex, 0, angular.fromJson(dt.getData('bigcheap/tab-scope')));
               });
