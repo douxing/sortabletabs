@@ -194,6 +194,7 @@ angular.module('bigcheap.sortabletabs', [])
     transclude: true,
     scope: {
       active: '=?',
+      highlight: '=?',
       heading: '@',
       tabDragdata: '=?',
       tabDragdelete: '@',
@@ -310,7 +311,6 @@ angular.module('bigcheap.sortabletabs', [])
             var found = internalMethods.getDropAreaFound(dropAreaFoundTag);
             var dropTabId = $window.localStorage.getItem(tabIdTag);
             if (!dropTabId || !tabId || dropTabId !== tabId) {
-              console.log('dragend .............................');
               if (found || dragDelete === 'always') {
                 scope.$apply(function () {
                   tabsGetter(scope).splice(scope.$parent.$index, 1);
@@ -450,7 +450,7 @@ angular.module('bigcheap.sortabletabs', [])
 
 angular.module("bigcheap/tabs/tab.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("bigcheap/tabs/tab.html",
-    "<li ng-class=\"{active: active, disabled: disabled}\">\n" +
+    "<li ng-class=\"{active: active, disabled: disabled, highlight: highlight}\">\n" +
     "  <a ng-click=\"select()\" sortable-tab-heading-transclude>{{heading}}</a>\n" +
     "</li>\n" +
     "");
