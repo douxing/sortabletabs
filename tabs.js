@@ -310,12 +310,10 @@ angular.module('bigcheap.sortabletabs', [])
 
             var found = internalMethods.getDropAreaFound(dropAreaFoundTag);
             var dropTabId = $window.localStorage.getItem(tabIdTag);
-            if (!dropTabId || !tabId || dropTabId !== tabId) {
-              if (found || dragDelete === 'always') {
-                scope.$apply(function () {
-                  tabsGetter(scope).splice(scope.$parent.$index, 1);
-                });
-              }
+            if (dragDelete === 'always' || (found && (!dropTabId || !tabId || dropTabId !== tabId))) {
+              scope.$apply(function () {
+                tabsGetter(scope).splice(scope.$parent.$index, 1);
+              });
 
               scope.onDragend({
                 $dropAreaFound: found
